@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Notes REST API built with FastAPI, PostgreSQL and Redis.">
+  <title>Notes</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/theme.js"></script>
+  <script src="/static/markdown.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="/" aria-label="Home">
+        <img class="brand-logo" id="brand-logo" alt="" width="28" height="28" hidden>
+        <span class="brand-mark" id="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name" id="brand-name">Syncbay</span>
+        <span class="brand-sub">Notes</span>
+      </a>
+      <nav class="header-actions" aria-label="Account">
+        <a class="link-quiet" href="/docs">API docs</a>
+        <button type="button" class="btn btn-ghost" id="theme-toggle" aria-pressed="false">
+          <span class="theme-icon" aria-hidden="true"></span>
+          <span id="theme-label">Dark mode</span>
+        </button>
+        <span class="user-chip" id="user-chip" hidden></span>
+        <button type="button" class="btn btn-ghost" id="logout" hidden>Log out</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="wrap" tabindex="-1">
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <section id="auth-view" class="auth" aria-labelledby="auth-title" hidden>
+      <div class="auth-intro">
+        <h1 id="auth-title">Your notes, served by FastAPI</h1>
+        <p class="lead">A Notes REST API with JWT auth, PostgreSQL full-text search and Redis
+          caching and rate limiting. Sign up to try it, or explore the
+          <a href="/docs">OpenAPI docs</a>.</p>
+        <ul class="feature-list">
+          <li>Access + refresh tokens with rotation</li>
+          <li>Cursor pagination and search</li>
+          <li>Redis read-through cache, rate limits</li>
+        </ul>
+      </div>
+      <div class="card auth-card">
+        <div class="tabs" role="tablist" aria-label="Account">
+          <button type="button" role="tab" id="tab-login" aria-controls="login-form"
+            aria-selected="true" class="tab">Log in</button>
+          <button type="button" role="tab" id="tab-register" aria-controls="register-form"
+            aria-selected="false" class="tab" tabindex="-1">Create account</button>
+        </div>
+        <form id="login-form" class="form" role="tabpanel" aria-labelledby="tab-login" novalidate>
+          <div class="field">
+            <label for="login-email">Email</label>
+            <input id="login-email" name="email" type="email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <input id="login-password" name="password" type="password"
+              autocomplete="current-password" required>
+          </div>
+          <p class="form-error" id="login-error" role="alert"></p>
+          <button type="submit" class="btn btn-primary">Log in</button>
+        </form>
+        <form id="register-form" class="form" role="tabpanel" aria-labelledby="tab-register"
+          novalidate hidden>
+          <div class="field">
+            <label for="register-name">Display name <span class="optional">(optional)</span></label>
+            <input id="register-name" name="display_name" type="text" maxlength="80"
+              autocomplete="nickname">
+          </div>
+          <div class="field">
+            <label for="register-email">Email</label>
+            <input id="register-email" name="email" type="email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="register-password">Password</label>
+            <input id="register-password" name="password" type="password" minlength="8"
+              maxlength="128" autocomplete="new-password" required
+              aria-describedby="register-password-hint">
+            <p class="hint" id="register-password-hint">At least 8 characters, letters mixed
+              with digits or symbols.</p>
+          </div>
+          <p class="form-error" id="register-error" role="alert"></p>
+          <button type="submit" class="btn btn-primary">Create account</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="notes-view" class="notes" aria-labelledby="notes-title" hidden>
+      <div class="notes-head">
+        <h1 id="notes-title">Notes</h1>
+        <button type="button" class="btn btn-primary" id="new-note">New note</button>
+      </div>
+      <form id="search-form" class="toolbar" role="search">
+        <div class="field grow">
+          <label for="search">Search</label>
+          <input id="search" name="q" type="search" maxlength="200">
+        </div>
+        <div class="field">
+          <label for="tag-filter">Tag</label>
+          <select id="tag-filter" name="tag">
+            <option value="">All tags</option>
+          </select>
+        </div>
+        <button type="submit" class="btn">Search</button>
+      </form>
+
+      <div class="layout">
+        <div class="list-col">
+          <p class="cache-note" id="cache-note" aria-live="off"></p>
+          <ul id="note-list" class="note-list" aria-label="Notes"></ul>
+          <p id="empty" class="empty" hidden>No notes match.</p>
+          <button type="button" class="btn btn-block" id="load-more" hidden>Load more</button>
+        </div>
+
+        <div class="editor-col">
+          <form id="note-form" class="card form" aria-labelledby="editor-title" novalidate hidden>
+            <h2 id="editor-title">New note</h2>
+            <div class="field">
+              <label for="note-title">Title</label>
+              <input id="note-title" name="title" type="text" maxlength="200" required>
+            </div>
+            <div class="field">
+              <label for="note-body">Body <span class="optional">(Markdown)</span></label>
+              <textarea id="note-body" name="body" rows="9" maxlength="20000"></textarea>
+            </div>
+            <div class="field">
+              <label for="note-tags">Tags <span class="optional">(comma separated)</span></label>
+              <input id="note-tags" name="tags" type="text" maxlength="400"
+                aria-describedby="note-tags-hint">
+              <p class="hint" id="note-tags-hint">Up to 10 tags: letters, digits, - and _.</p>
+            </div>
+            <label class="check"><input id="note-pinned" name="pinned" type="checkbox"> Pin to top</label>
+            <p class="form-error" id="note-error" role="alert"></p>
+            <div class="row">
+              <button type="submit" class="btn btn-primary" id="save-note">Save</button>
+              <button type="button" class="btn" id="cancel-note">Cancel</button>
+              <button type="button" class="btn btn-danger" id="delete-note" hidden>Delete</button>
+            </div>
+          </form>
+
+          <article id="note-view" class="card note-view" aria-labelledby="view-title" hidden>
+            <div class="note-view-head">
+              <h2 id="view-title"></h2>
+              <div class="row">
+                <button type="button" class="btn" id="edit-note">Edit</button>
+              </div>
+            </div>
+            <p class="meta" id="view-meta"></p>
+            <ul class="tags" id="view-tags" aria-label="Tags"></ul>
+            <div class="markdown" id="view-body"></div>
+          </article>
+          <p class="card hint-card" id="no-selection">Select a note to read it, or create a new one.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>Built with FastAPI, PostgreSQL and Redis.</span>
+      <a href="https://syncbay.app">Deploy on Syncbay</a>
+    </div>
+  </footer>
+</body>
+</html>

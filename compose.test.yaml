@@ -1,0 +1,9 @@
+# Test overlay: publishes Postgres and Redis on loopback so the pytest API suite can reach them.
+#   docker compose -f compose.yaml -f compose.test.yaml up -d --wait
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:${TEST_PG_PORT:-15101}:5432"
+  redis:
+    ports:
+      - "127.0.0.1:${TEST_REDIS_PORT:-15102}:6379"

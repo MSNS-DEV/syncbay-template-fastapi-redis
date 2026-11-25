@@ -1,0 +1,20 @@
+{
+  "$schema": "https://syncbay.app/schemas/syncbay.v1.json",
+  "name": "FastAPI & Redis",
+  "slug": "fastapi-redis",
+  "description": "Notes REST API with FastAPI, PostgreSQL, Redis caching and rate limiting, JWT auth and a small web UI.",
+  "port": 8000,
+  "healthcheckPath": "/health",
+  "services": [
+    { "type": "postgres", "env": "DATABASE_URL" },
+    { "type": "redis", "env": "REDIS_URL" }
+  ],
+  "env": [
+    { "key": "JWT_SECRET", "description": "Signing key for access and refresh tokens", "generate": "secret" },
+    { "key": "TRUSTED_PROXY_HOPS", "description": "Reverse proxies that append to X-Forwarded-For (the Syncbay edge is 1)", "default": "1" },
+    { "key": "SEED_DEMO_DATA", "description": "Give every new account three welcome notes", "default": "true" },
+    { "key": "BRAND_NAME", "description": "Name shown in the header", "default": "Syncbay" },
+    { "key": "BRAND_LOGO_URL", "description": "Optional logo image URL shown in the header" },
+    { "key": "BRAND_PRIMARY", "description": "Primary brand colour (hex)", "default": "#06b6d4" }
+  ]
+}
