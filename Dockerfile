@@ -4,12 +4,20 @@
 FROM python:3.12-alpine3.22 AS builder
 # Only needed if a dependency has no musllinux wheel and must compile; never shipped.
 RUN apk add --no-cache build-base libffi-dev
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never \
+ENV UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/opt/venv PIP_DISABLE_PIP_VERSION_CHECK=1
 RUN pip install --no-cache-dir uv==0.11.32
 WORKDIR /src
 COPY pyproject.toml uv.lock .python-version ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project \
+ && find /opt/venv -name '*.so' -exec strip --strip-unneeded {} + \
+ && find /opt/venv \( -name '*.pyx' -o -name '*.pxd' -o -name '*.c' -o -name '*.cpp' -o -name '*.h' \) -delete \
+ && find /opt/venv -type d -name tests -prune -exec rm -rf {} + \
+ # Ship third-party packages as bytecode only (keeps the image < 150 MB); app code keeps sources.
+ && SITE=/opt/venv/lib/python3.12/site-packages \
+ && python -m compileall -q -b -j 0 "$SITE" \
+ && find "$SITE" -name '*.py' -delete \
+ && find "$SITE" -type d -name __pycache__ -prune -exec rm -rf {} +
 COPY app ./app
 RUN /opt/venv/bin/python -m compileall -q app
 
