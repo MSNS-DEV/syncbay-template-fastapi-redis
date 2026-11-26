@@ -1,0 +1,11 @@
+{
+  "name": "syncbay-template-fastapi-redis-e2e",
+  "private": true,
+  "description": "Playwright end-to-end tests against the docker compose stack",
+  "scripts": {
+    "test": "node --test --test-reporter=spec notes.e2e.test.js"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

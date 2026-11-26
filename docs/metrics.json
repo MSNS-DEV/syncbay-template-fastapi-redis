@@ -1,0 +1,7 @@
+{
+  "imageSizeMB": 133.3,
+  "idleMemMB": 67.4,
+  "coldStartMs": 4109,
+  "measuredAt": "2026-11-26",
+  "dockerBaseImages": ["python:3.12-alpine3.22", "postgres:16-alpine", "redis:7-alpine"]
+}
