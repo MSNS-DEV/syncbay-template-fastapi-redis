@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 
@@ -104,3 +105,72 @@ def _client(scope: Scope, hops: int) -> str:
             if len(parts) >= hops:
                 return parts[-hops]
     return peer
+
+
+class BodySizeLimitMiddleware:
+    """Refuse request bodies over `limit` bytes before FastAPI reads and parses them.
+
+    Without this, uvicorn buffers any body (a 100 MB JSON POST to /api/auth/login, no
+    account needed) and pydantic parses it in full. Checks Content-Length up front and
+    counts streamed bytes for chunked requests.
+    """
+
+    def __init__(self, app: ASGIApp, *, limit: int) -> None:
+        self.app = app
+        self.limit = limit
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        for name, value in scope.get("headers", []):
+            if name == b"content-length":
+                try:
+                    too_big = int(value) > self.limit
+                except ValueError:
+                    too_big = False
+                if too_big:
+                    await _reject(send, self.limit)
+                    return
+        received = 0
+        started = False
+
+        async def send_wrapper(message: Message) -> None:
+            nonlocal started
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        async def receive_wrapper() -> Message:
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > self.limit:
+                    raise _BodyTooLargeError
+            return message
+
+        try:
+            await self.app(scope, receive_wrapper, send_wrapper)
+        except _BodyTooLargeError:
+            if not started:
+                await _reject(send, self.limit)
+
+
+class _BodyTooLargeError(Exception):
+    pass
+
+
+async def _reject(send: Send, limit: int) -> None:
+    body = json.dumps({"detail": f"Request body is larger than {limit // 1024} KiB"}).encode()
+    await send(
+        {
+            "type": "http.response.start",
+            "status": 413,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode()),
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": body})

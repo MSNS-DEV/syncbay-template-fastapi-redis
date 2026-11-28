@@ -24,6 +24,14 @@ async def test_duplicate_email_conflicts(client: httpx.AsyncClient) -> None:
     assert res.status_code == 409
 
 
+async def test_oversized_body_is_refused_before_parsing(client: httpx.AsyncClient) -> None:
+    huge = b'{"email": "a@example.com", "password": "' + b"x" * (300 * 1024) + b'"}'
+    res = await client.post(
+        "/api/auth/login", content=huge, headers={"content-type": "application/json"}
+    )
+    assert res.status_code == 413
+
+
 async def test_validation_errors(client: httpx.AsyncClient) -> None:
     res = await client.post("/api/auth/register", json={"email": "nope", "password": "short"})
     assert res.status_code == 422

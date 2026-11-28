@@ -12,7 +12,7 @@ A Notes REST API with JWT auth, PostgreSQL full-text search, Redis caching and r
 - **Notes:** each note has a title, a Markdown body, tags and a pinned flag. Notes are private to their owner: another user's note returns 404.
 - **Search and paging:** Postgres full-text search (`tsvector` + GIN) is combined with substring matching. You can filter by tag or pinned state. Pages use keyset (cursor) pagination.
 - **Redis cache:** note lists are cached with a read-through cache. Every write bumps a per-user version, which invalidates that user's cached pages at once. The `X-Cache: HIT|MISS` header shows which case applied.
-- **Rate limits:** Redis fixed-window counters allow auth endpoints 10 requests per minute per IP and writes 60 per minute per user. Over the limit, the API returns `429` with `Retry-After`.
+- **Rate limits:** Redis fixed-window counters allow auth endpoints 10 requests per minute per IP and writes 60 per minute per user. Over the limit, the API returns `429` with `Retry-After`. Request bodies over 256 KiB get `413` before they are read.
 - **Web UI** at `/`: plain HTML, CSS and JavaScript with no build step. It is accessible, works from 360 px wide, and has a dark mode that follows the system setting plus a toggle. Branding comes from `BRAND_*` env vars.
 - **OpenAPI docs** at `/docs`, plus `/health`, JSON logs, security headers (CSP, `frame-ancestors 'none'`) and graceful shutdown.
 - **Small image:** Python 3.12 on Alpine, multi-stage, runs as non-root. The image is about 133 MB and the app idles at about 67 MB of RAM (see [`docs/metrics.json`](docs/metrics.json)).

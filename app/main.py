@@ -14,12 +14,19 @@ from app.cache import NoteListCache
 from app.db import create_engine, create_sessionmaker
 from app.deps import AppState
 from app.logging_config import configure_logging
-from app.middleware import RequestLogMiddleware, SecurityHeadersMiddleware
+from app.middleware import (
+    BodySizeLimitMiddleware,
+    RequestLogMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.ratelimit import RateLimiter
 from app.routers import auth, meta, notes
 from app.settings import Settings, get_settings
 
 log = logging.getLogger("app")
+
+# The largest valid request (a 20 000-character note with 50 tags) is well under this.
+MAX_BODY_BYTES = 256 * 1024
 
 
 def build_state(settings: Settings) -> AppState:
@@ -67,6 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(notes.router)
     app.mount("/static", StaticFiles(directory=meta.STATIC_DIR), name="static")
+    app.add_middleware(BodySizeLimitMiddleware, limit=MAX_BODY_BYTES)
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestLogMiddleware, trusted_proxy_hops=settings.trusted_proxy_hops)
     return app
